@@ -4,8 +4,10 @@ version = "1.0.0"
 edition = "2021"
 description = "Context-aware intelligent terminal with OS isolation"
 license = "MIT"
-authors = ["Arsalan Shoaei Ahmad Abad"]
-email= ["arsalanshoaei@gmail.com"]
+authors = ["Arsalan Shoaei Ahmad Abad <arsalanshoaei@gmail.com>"]
+repository = "https://github.com/bbhcoder/smart_term"
+readme = "Readme.md"
+keywords = ["terminal", "shell", "history", "pty"]
 
 [dependencies]
 crossterm = "0.27"

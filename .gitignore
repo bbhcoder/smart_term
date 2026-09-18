@@ -1,2 +1,9 @@
 /target
 /bcs_dev
+*.sqlite
+*.db
+*.rpm
+*.deb
+*.msi
+*.pkg
+.DS_Store
