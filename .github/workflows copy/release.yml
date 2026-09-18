@@ -1,0 +1,74 @@
+name: Smart Term Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-publish:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false # جلوگیری از کنسل شدن بقیه بیلدها در صورت خطای یک سیستم عامل
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: windows-latest
+          - os: macos-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Toolchain
+        run: rustup update stable && rustup default stable
+
+      # ----------------------------------------
+      # 1. ساخت بسته نصب فدورا (.rpm) و اوبونتو (.deb)
+      # ----------------------------------------
+      - name: Build Linux Packages
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update && sudo apt-get install -y rpm
+          cargo install cargo-generate-rpm cargo-deb
+          cargo build --release
+          cargo generate-rpm
+          cargo deb
+          cp target/generate-rpm/*.rpm ./smart_term-linux.rpm
+          cp target/debian/*.deb ./smart_term-linux.deb
+
+      # ----------------------------------------
+      # 2. ساخت ویزارد نصب گرافیکی ویندوز (.msi)
+      # ----------------------------------------
+      - name: Build Windows MSI
+        if: matrix.os == 'windows-latest'
+        run: |
+          cargo install cargo-wix
+          cargo wix
+          copy target\wix\*.msi smart_term-windows.msi
+
+      # ----------------------------------------
+      # 3. ساخت ویزارد نصب گرافیکی مک‌اواس (.pkg)
+      # ----------------------------------------
+      - name: Build macOS PKG
+        if: matrix.os == 'macos-latest'
+        run: |
+          cargo build --release
+          mkdir -p root/usr/local/bin
+          cp target/release/smart_term root/usr/local/bin/smart
+          pkgbuild --root root --identifier com.smartterm.app --version 1.0.0 smart_term-macos.pkg
+
+      # ----------------------------------------
+      # آپلود تمام فایل‌های نصب در گیت‌هاب ریلیز
+      # ----------------------------------------
+      - name: Upload to GitHub Releases
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            smart_term-linux.rpm
+            smart_term-linux.deb
+            smart_term-windows.msi
+            smart_term-macos.pkg

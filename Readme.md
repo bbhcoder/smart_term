@@ -16,6 +16,7 @@ SmartTerm is a next-generation terminal session manager written in Rust. It supe
 - **🪄 Transparent Proxy Mode** — Secure, invisible password masking. SmartTerm safely handles interactive OS prompts (like `sudo` or user creation) without leaking them into your command history.
 - **📁 Project & Namespace Sandboxing** — Group related tasks into isolated workspaces (`namespace use <name>`).
 - **🛠 Tool-Specific Filtering** — Instantly filter your terminal history for a specific tool using `restore [tool]` (e.g., `restore docker`).
+- **🧪 Dev Mode & Rollbacks** — Built-in isolated developer environment (`smartdev`) with one-command safe deployments to production and instant version rollbacks.
 - **♻️ Self-Updating** — A single built-in command (`core update` / `installer get`) fetches and natively installs the latest package for your OS, falling back smartly between `curl`, `wget`, or `python3`.
 - **🌍 Cross-Platform** — Native support and automated installers for Linux (`.rpm`, `.deb`), macOS (`.pkg`), and Windows (`.msi`).
 
@@ -91,12 +92,24 @@ Bind a directory so that all commands executed inside it automatically run as a 
 | `bind user <nm>` | Binds the current directory to `<nm>`. Every command run here will automatically be wrapped in `su` or `runas`. |
 | `unbind user` | Removes the binding from the current directory. |
 
-### 4. System & Updates
+### 4. Developer Mode (`smartdev`)
+
+SmartTerm includes a built-in isolated development environment to safely build and test changes without affecting your daily terminal usage. Run `cargo run` in the project root to launch SmartTerm in Dev Mode (uses a separate `.smart_term_dev_history.sqlite` database).
+
+| Command | Description |
+| :--- | :--- |
+| `smartdev to smart` | Deploys your current development build to the system as the main `smart` command, safely backing up the stable version. |
+| `smart rollback` | Reverts a recent deployment, restoring the previously backed-up stable version of SmartTerm. |
+| `smartdev exit` | Cleanly exits the development environment. |
+
+### 5. System & Updates
 
 | Command | Description |
 | :--- | :--- |
 | `core update` | Safely detects your OS and updates SmartTerm to the latest release natively. |
 | `installer get` | Alias for `core update`. |
+| `smart org` | Sets SmartTerm as your default global shell. |
+| `smart exit` | Removes SmartTerm from your default global shell. |
 | `help` | Displays the built-in quick reference guide. |
 
 ---

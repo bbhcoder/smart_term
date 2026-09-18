@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
-echo -e "\e[32m[1/4]\e[0m Detecting OS and native downloaders..."
 
+echo -e "\e[32m[1/4]\e[0m Detecting OS and native downloaders..."
 dl() {
     if command -v curl >/dev/null 2>&1; then curl -L "$1" -o "$2"
     elif command -v wget >/dev/null 2>&1; then wget -O "$2" "$1"
@@ -29,15 +29,13 @@ fi
 echo -e "\e[32m[4/4]\e[0m Configuration"
 read -p "Do you want SmartTerm to launch automatically in new terminals? (y/n) " -n 1 -r
 echo
+
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    for rc in ~/.bashrc ~/.zshrc; do
-        if [ -f "$rc" ]; then
-            if ! grep -q "smart" "$rc"; then
-                echo -e "\n# Launch SmartTerm\nif command -v smart >/dev/null 2>&1; then smart; fi" >> "$rc"
-            fi
-        fi
-    done
-    echo -e "\e[32m[System]\e[0m SmartTerm set as default environment!"
+    if command -v smart >/dev/null 2>&1; then
+        smart org
+    elif [ -x "/usr/local/bin/smart" ]; then
+        /usr/local/bin/smart org
+    fi
 fi
 
-echo -e "\e[32m[Success]\e[0m Installation complete! Type 'smart' to launch."
+echo -e "\e[32m[Success]\e[0m Installation complete! Open a new tab or type 'smart' to launch."
