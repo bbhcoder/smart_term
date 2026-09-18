@@ -3,7 +3,7 @@ name: Smart Term Release
 on:
   push:
     tags:
-      - 'v*' # این اکشن فقط زمانی اجرا می‌شود که شما یک تگ مثل v1.0.0 پوش کنید
+      - 'v*'
 
 jobs:
   build-and-publish:
@@ -12,6 +12,7 @@ jobs:
     permissions:
       contents: write
     strategy:
+      fail-fast: false # جلوگیری از کنسل شدن بقیه بیلدها در صورت خطای یک سیستم عامل
       matrix:
         include:
           - os: ubuntu-latest
@@ -26,15 +27,18 @@ jobs:
         run: rustup update stable && rustup default stable
 
       # ----------------------------------------
-      # 1. ساخت بسته نصب فدورا/لینوکس (.rpm)
+      # 1. ساخت بسته نصب فدورا (.rpm) و اوبونتو (.deb)
       # ----------------------------------------
-      - name: Build Linux RPM
+      - name: Build Linux Packages
         if: matrix.os == 'ubuntu-latest'
         run: |
-          cargo install cargo-generate-rpm
+          sudo apt-get update && sudo apt-get install -y rpm
+          cargo install cargo-generate-rpm cargo-deb
           cargo build --release
           cargo generate-rpm
+          cargo deb
           cp target/generate-rpm/*.rpm ./smart_term-linux.rpm
+          cp target/debian/*.deb ./smart_term-linux.deb
 
       # ----------------------------------------
       # 2. ساخت ویزارد نصب گرافیکی ویندوز (.msi)
@@ -42,6 +46,7 @@ jobs:
       - name: Build Windows MSI
         if: matrix.os == 'windows-latest'
         run: |
+          cargo install cargo-wix
           cargo wix
           copy target\wix\*.msi smart_term-windows.msi
 
@@ -57,12 +62,13 @@ jobs:
           pkgbuild --root root --identifier com.smartterm.app --version 1.0.0 smart_term-macos.pkg
 
       # ----------------------------------------
-      # آپلود فایل‌های نصب در گیت‌هاب ریلیز
+      # آپلود تمام فایل‌های نصب در گیت‌هاب ریلیز
       # ----------------------------------------
       - name: Upload to GitHub Releases
         uses: softprops/action-gh-release@v1
         with:
           files: |
             smart_term-linux.rpm
+            smart_term-linux.deb
             smart_term-windows.msi
             smart_term-macos.pkg

@@ -5,6 +5,7 @@ edition = "2021"
 description = "Context-aware intelligent terminal with OS isolation"
 license = "MIT"
 authors = ["Arsalan Shoaei Ahmad Abad"]
+email= ["arsalanshoaei@gmail.com"]
 
 [dependencies]
 crossterm = "0.27"
