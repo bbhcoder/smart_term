@@ -1,25 +1,16 @@
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
-use std::io::{Read, Write};
-use std::thread;
+use std::{env, io::{Read, Write}, thread};
 use crate::parser::interceptor::CommandInterceptor;
 
 pub fn run_pty() -> Result<(), Box<dyn std::error::Error>> {
     let pty_system = NativePtySystem::default();
-    
-    let pair = pty_system.openpty(PtySize {
-        rows: 24,
-        cols: 80,
-        pixel_width: 0,
-        pixel_height: 0,
-    })?;
-
+    let pair = pty_system.openpty(PtySize { rows: 24, cols: 80, pixel_width: 0, pixel_height: 0 })?;
     let shell = if cfg!(target_os = "windows") { "cmd" } else { "bash" };
-    let cmd = CommandBuilder::new(shell);
+    let mut cmd = CommandBuilder::new(shell);
+    if let Ok(d) = env::current_dir() { cmd.cwd(d); }
     let mut child = pair.slave.spawn_command(cmd)?;
-
     let mut reader = pair.master.try_clone_reader()?;
     let mut writer = pair.master.take_writer()?;
-
     thread::spawn(move || {
         let mut buf = [0u8; 1024];
         while let Ok(n) = reader.read(&mut buf) {
@@ -28,7 +19,6 @@ pub fn run_pty() -> Result<(), Box<dyn std::error::Error>> {
             let _ = std::io::stdout().flush();
         }
     });
-
     thread::spawn(move || {
         let mut buf = [0u8; 1024];
         let mut interceptor = CommandInterceptor::new();
@@ -39,7 +29,6 @@ pub fn run_pty() -> Result<(), Box<dyn std::error::Error>> {
             let _ = writer.flush();
         }
     });
-
     child.wait()?;
     Ok(())
 }
