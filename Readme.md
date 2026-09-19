@@ -67,6 +67,7 @@ Type `help` or `smart help` at any time to see this list in your terminal.
 | `restore <tool>` | Fills the up-arrow history ONLY with previous commands starting with `<tool>` (e.g., `restore docker`). |
 | `cexit` | Exits the filtered state and returns to normal history. |
 | `<cmd> ccopy` | Executes `<cmd>`, prints the output, and **instantly copies it to your clipboard**. |
+| `<cmd> rmc` | Delete `<cmd>` From history of dir, namespace and user. **Be Easy With important commands**. |
 | `namespace use <nm>`| Enters an isolated history namespace (perfect for specific, complex tasks). |
 | `namespace exit` | Leaves the current namespace and returns to global history. |
 
