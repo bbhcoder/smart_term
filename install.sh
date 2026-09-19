@@ -27,15 +27,40 @@ else
 fi
 
 echo -e "\e[32m[4/4]\e[0m Configuration"
+
+# --- FIX: detect real binary name ---
+BIN=""
+if command -v smart >/dev/null 2>&1; then
+    BIN="smart"
+elif command -v smart_term >/dev/null 2>&1; then
+    BIN="smart_term"
+elif [ -x "/usr/bin/smart_term" ]; then
+    BIN="/usr/bin/smart_term"
+elif [ -x "/usr/local/bin/smart_term" ]; then
+    BIN="/usr/local/bin/smart_term"
+fi
+
+# If still not found, create symlink
+if [ -z "$BIN" ]; then
+    if [ -x "/usr/bin/smart_term" ]; then
+        sudo ln -sf /usr/bin/smart_term /usr/local/bin/smart
+        BIN="smart"
+    elif [ -x "/usr/local/bin/smart_term" ]; then
+        sudo ln -sf /usr/local/bin/smart_term /usr/local/bin/smart
+        BIN="smart"
+    fi
+fi
+
+if [ -z "$BIN" ]; then
+    echo -e "\e[31mError: SmartTerm binary not found after installation.\e[0m"
+    exit 1
+fi
+
 read -p "Do you want SmartTerm to launch automatically in new terminals? (y/n) " -n 1 -r
 echo
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    if command -v smart >/dev/null 2>&1; then
-        smart org
-    elif [ -x "/usr/local/bin/smart" ]; then
-        /usr/local/bin/smart org
-    fi
+    "$BIN" org
 fi
 
-echo -e "\e[32m[Success]\e[0m Installation complete! Open a new tab or type 'smart' to launch."
+echo -e "\e[32m[Success]\e[0m Installation complete! Open a new tab or type 'smart' or 'smart_term' to launch."
