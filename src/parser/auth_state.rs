@@ -1,6 +1,6 @@
 use crate::parser::interceptor::CommandInterceptor;
 use crate::{history::queries, os::sys_cmd};
-use std::{path::Path, io::{self, Write}};
+use std::{io::{self, Write}};
 
 pub fn process_auth(ctx: &mut CommandInterceptor, bytes: &[u8]) -> Vec<u8> {
     if ctx.os_wait_pass {
@@ -99,10 +99,32 @@ pub fn handle_arrows(ctx: &mut CommandInterceptor, bytes: &[u8]) -> Vec<u8> {
 }
 
 pub fn update_cwd(ctx: &mut CommandInterceptor, cmd: &str) {
-    if cmd.starts_with("cd") {
-        let tgt = cmd.split_whitespace().nth(1).unwrap_or("~");
-        let new_dir = if tgt == "-" { ctx.nav_history.clone() } else if tgt.starts_with('~') { dirs::home_dir().map(|mut h| { if tgt.len()>2 { h.push(&tgt[2..]); } h.to_string_lossy().to_string() }).unwrap_or_default() } else { let p = Path::new(tgt); if p.is_absolute() { p.to_string_lossy().to_string() } else { Path::new(&ctx.current_dir).join(p).to_string_lossy().to_string() } };
-        if let Ok(c) = std::fs::canonicalize(&new_dir) { ctx.nav_history = ctx.current_dir.clone(); ctx.current_dir = c.to_string_lossy().to_string(); check_bindings(ctx); }
+    if cmd.starts_with("cd ") || cmd == "cd" {
+        let tgt = cmd.strip_prefix("cd").unwrap_or("").trim();
+        let tgt = tgt.trim_matches(|c| c == '\'' || c == '\"');
+        let tgt = if tgt.is_empty() { "~" } else { tgt };
+
+        let new_dir = if tgt == "-" { 
+            ctx.nav_history.clone() 
+        } else if tgt.starts_with('~') { 
+            dirs::home_dir().map(|mut h| { 
+                if tgt.len() > 2 { h.push(&tgt[2..]); } 
+                h.to_string_lossy().to_string() 
+            }).unwrap_or_default() 
+        } else { 
+            let p = std::path::Path::new(tgt); 
+            if p.is_absolute() { 
+                p.to_string_lossy().to_string() 
+            } else { 
+                std::path::Path::new(&ctx.current_dir).join(p).to_string_lossy().to_string() 
+            } 
+        };
+
+        if let Ok(c) = std::fs::canonicalize(&new_dir) { 
+            ctx.nav_history = ctx.current_dir.clone(); 
+            ctx.current_dir = c.to_string_lossy().to_string(); 
+            check_bindings(ctx); 
+        }
     }
 }
 

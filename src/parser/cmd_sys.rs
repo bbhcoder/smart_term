@@ -70,6 +70,12 @@ pub fn handle(ctx: &mut CommandInterceptor, cmd: &str) -> Option<Vec<u8>> {
         ctx.history = queries::get_tool_hist(cmd[8..].trim()).unwrap_or_default(); res = Some(vec![3]);
     } else if cmd.ends_with(" ccopy") {
         let cln = cmd.strip_suffix(" ccopy").unwrap().trim(); let log = dirs::home_dir().unwrap_or_default().join(".scopy.log").to_string_lossy().to_string(); let mut out = vec![21]; out.extend_from_slice(format!("{} | tee {}; if command -v pbcopy >/dev/null 2>&1; then pbcopy < {}; elif command -v wl-copy >/dev/null 2>&1; then wl-copy < {}; elif command -v xclip >/dev/null 2>&1; then xclip -selection clipboard < {}; fi; printf '\\r\\n\\x1b[32m[System] Copied!\\x1b[0m\\r\\n'\n", cln, log, log, log, log).as_bytes()); res = Some(out);
+    } else if cmd.ends_with("-none") {
+        let cln = crate::parser::flags::clean_command(cmd);
+        let mut out = vec![21];
+        out.extend_from_slice(cln.as_bytes());
+        out.push(b'\n');
+        res = Some(out);    
     } else if cmd.starts_with("namespace") {
         if cmd.starts_with("namespace use ") { ctx.active_namespace = cmd.split_whitespace().nth(2).map(String::from); let _ = io::stdout().write_all(format!("\r\n\x1b[2K\x1b[32m[System] NS: {}\x1b[0m\r\n", ctx.active_namespace.as_deref().unwrap_or("")).as_bytes()); } else if cmd == "namespace exit" { ctx.active_namespace = None; let _ = io::stdout().write_all(b"\r\n\x1b[2K\x1b[32m[System] NS Exited\x1b[0m\r\n"); } res = Some(vec![3]);
     } else if cmd.starts_with("login project ") || cmd.starts_with("save project ") {

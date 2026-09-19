@@ -39,16 +39,32 @@ impl CommandInterceptor {
         if self.os_wait_pass || self.del_mode > 0 || self.pwd_mode > 0 { return auth_state::process_auth(self, bytes); }
         if bytes == [27, 91, 65] || bytes == [27, 91, 66] { return auth_state::handle_arrows(self, bytes); }
         self.history.clear(); self.history_idx = 0;
-        
+
+        // ایجاد یک بافر خروجی پویا برای مدیریت بی‌نقص پیست کردن چندین خط
+        let mut final_out = Vec::with_capacity(bytes.len());
+
         for &b in bytes {
-            if b == 3 { self.buffer.clear(); let _ = io::stdout().write_all(b"\r\n"); return vec![21, 3]; }
-            if self.in_escape { if (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z') || b == b'~' { self.in_escape = false; } continue; }
-            if b == 27 { self.in_escape = true; continue; }
+            if b == 3 { 
+                self.buffer.clear(); 
+                let _ = io::stdout().write_all(b"\r\n"); 
+                final_out.extend_from_slice(&[21, 3]);
+                continue; 
+            }
+            if self.in_escape { 
+                if (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z') || b == b'~' { self.in_escape = false; } 
+                final_out.push(b);
+                continue; 
+            }
+            if b == 27 { 
+                self.in_escape = true; 
+                final_out.push(b);
+                continue; 
+            }
             match b {
                 b'\r' | b'\n' => {
                     let cmd = self.buffer.trim().to_string();
                     let mut is_sec = false;
-                    let skip_log = cmd == "rmc" || cmd.ends_with(" rmc");
+                    let skip_log = cmd == "rmc" || cmd.ends_with(" rmc") || cmd == "history clear";
                     
                     if !cmd.is_empty() && flags::should_log(&cmd) && !skip_log {
                         let cln = flags::clean_command(&cmd);
@@ -58,20 +74,36 @@ impl CommandInterceptor {
                         let usr = if active != "default" && active != sys_usr { Some(active.to_string()) } else { None };
                         let _ = queries::insert_cmd(&cln, &self.current_dir, self.active_project.as_deref(), self.active_namespace.as_deref(), usr.as_deref());
                     }
-
-                    if let Some(fb) = commands::handle_special(self, &cmd) { if is_sec { self.os_wait_pass = true; } return fb; }
-
-                    if !cmd.is_empty() && flags::should_log(&cmd) && !skip_log {
-                        let cln = flags::clean_command(&cmd); auth_state::update_cwd(self, &cln);
+                    
+                    if let Some(mut fb) = commands::handle_special(self, &cmd) {
+                        if is_sec { self.os_wait_pass = true; }
+                        // به جای خروج از تابع، دستور را به بافر خروجی اضافه می‌کنیم
+                        final_out.append(&mut fb);
+                    } else {
+                        if !cmd.is_empty() && flags::should_log(&cmd) && !skip_log {
+                            let cln = flags::clean_command(&cmd);
+                            auth_state::update_cwd(self, &cln);
+                        }
+                        if is_sec { self.os_wait_pass = true; }
+                        // پاس دادن خط به پوسته (Shell)
+                        final_out.push(b);
                     }
-                    if is_sec { self.os_wait_pass = true; }
                     self.buffer.clear();
                 }
-                127 | 8 => { self.buffer.pop(); }
-                b if b >= 32 && b <= 126 => { self.buffer.push(b as char); }
-                _ => {}
+                127 | 8 => { 
+                    self.buffer.pop(); 
+                    final_out.push(b);
+                }
+                c if c >= 32 && c <= 126 => { 
+                    self.buffer.push(c as char); 
+                    final_out.push(b);
+                }
+                _ => {
+                    final_out.push(b);
+                }
             }
         }
-        bytes.to_vec()
+        
+        final_out
     }
 }

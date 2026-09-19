@@ -11,10 +11,12 @@ pub fn get_hist(cwd: &str, proj: Option<&str>, ns: Option<&str>, usr: Option<&st
     let c = Connection::open(&get_db_path())?;
     let mut cmds = Vec::new();
     if let Some(p) = proj {
-        let mut s = c.prepare("SELECT cmd FROM commands WHERE project = ?1 AND (namespace = ?2 OR namespace IS NULL) ORDER BY id DESC LIMIT 50")?;
+        // ایزولاسیون کامل نیم‌اسپیس با عملگر IS
+        let mut s = c.prepare("SELECT cmd FROM commands WHERE project = ?1 AND namespace IS ?2 ORDER BY id DESC LIMIT 50")?;
         for r in s.query_map(params![p, ns], |row| row.get::<_, String>(0))?.flatten() { cmds.push(r); }
     } else {
-        let mut s = c.prepare("SELECT cmd FROM commands WHERE cwd = ?1 AND project IS NULL AND (namespace = ?2 OR namespace IS NULL) AND (user = ?3 OR user IS NULL) ORDER BY id DESC LIMIT 50")?;
+        // ایزولاسیون کامل دایرکتوری، نیم‌اسپیس و یوزر
+        let mut s = c.prepare("SELECT cmd FROM commands WHERE cwd = ?1 AND project IS NULL AND namespace IS ?2 AND user IS ?3 ORDER BY id DESC LIMIT 50")?;
         for r in s.query_map(params![cwd, ns, usr], |row| row.get::<_, String>(0))?.flatten() { cmds.push(r); }
     }
     Ok(cmds)
