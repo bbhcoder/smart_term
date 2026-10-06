@@ -5,13 +5,18 @@ use smartcore::cache::state_cache::StateCache;
 use smartcore::engine::{preexec, precmd};
 use db::connection::get_connection;
 use db::queries::{history::{get_history, delete_history, delete_all_history}, state::{set_namespace_and_project, insert_user, list_namespaces, list_users}, bindings::{insert_binding, delete_binding}};
-use std::fs;
 
 #[cfg(unix)]
 pub async fn start_server(sock: &str, cache: StateCache) -> Result<(), String> {
-    let _ = fs::remove_file(sock);
+    let _ = std::fs::remove_file(sock);
     let listener = tokio::net::UnixListener::bind(sock).map_err(|e| e.to_string())?;
     loop { if let Ok((mut stream, _)) = listener.accept().await { let c = cache.clone(); tokio::spawn(async move { handle_stream(&mut stream, c).await; }); } }
+}
+
+#[cfg(windows)]
+pub async fn start_server(_sock: &str, cache: StateCache) -> Result<(), String> {
+    use tokio::net::windows::named_pipe::ServerOptions;
+    loop { if let Ok(mut server) = ServerOptions::new().create(r"\\.\pipe\smart_term_ipc") { if server.connect().await.is_ok() { let c = cache.clone(); tokio::spawn(async move { handle_stream(&mut server, c).await; }); } } }
 }
 
 async fn handle_stream<T: AsyncReadExt + AsyncWriteExt + Unpin>(stream: &mut T, cache: StateCache) {
