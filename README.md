@@ -18,13 +18,13 @@ A blazing-fast, daemon-based terminal context and history manager built in Rust.
 ### Linux & macOS (Bash / Zsh)
 Install the binaries and inject the shell hook in one command:
 ```bash
-curl -sSL https://raw.githubusercontent.com/bbhcoder/smart_term2/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/bbhcoder/smart_term/main/install.sh | bash
 ```
 
 ### Windows (PowerShell)
 Install the binaries and add the key-handlers to your PowerShell profile (Automatically configures Windows Defender exclusions):
 ```powershell
-irm https://raw.githubusercontent.com/bbhcoder/smart_term2/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/bbhcoder/smart_term/main/install.ps1 | iex
 ```
 
 ---
