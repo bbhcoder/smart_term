@@ -1,5 +1,5 @@
 use crate::HookCommands;
-use crate::ipc::client::send_request;
+use crate::ipc::client::send_fire_and_forget;
 use smartcore::abi::messages::ClientRequest;
 use std::env;
 
@@ -9,5 +9,5 @@ pub fn handle(action: HookCommands) {
         HookCommands::PreExec { command } => ClientRequest::PreExec { command, cwd },
         HookCommands::PreCmd { exit_code } => ClientRequest::PreCmd { cwd, exit_code },
     };
-    let _ = send_request(req);
+    send_fire_and_forget(req);
 }

@@ -1,6 +1,5 @@
 Stop-Process -Name "smartd" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "smart" -Force -ErrorAction SilentlyContinue
-
 $InstallDir = "$env:LOCALAPPDATA\SmartTerm"
 if (Test-Path $InstallDir) {
     Remove-Item -Path $InstallDir -Recurse -Force
@@ -15,4 +14,4 @@ if (Test-Path $ProfilePath) {
     $CleanProfile = $ProfileContent -replace '(?m)^.*smart init powershell.*$\r?\n?', ''
     Set-Content -Path $ProfilePath -Value $CleanProfile -Force
 }
-Write-Host "SmartTerm removed. Database kept safely at ~/.smart_term_v2.sqlite" -ForegroundColor Green
+Write-Host "SmartTerm removed. Database kept safely at ~/.smart_dev/smart_term.db" -ForegroundColor Green

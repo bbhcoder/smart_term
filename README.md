@@ -1,15 +1,15 @@
-# 🚀 SmartTerm v2
+# 🚀 SmartTerm
 
 A blazing-fast, daemon-based terminal context and history manager built in Rust. SmartTerm seamlessly integrates with your favorite shell (Bash, Zsh, PowerShell) to track command history, manage execution contexts, and persist session states using a sub-millisecond IPC architecture.
 
 ## ✨ Core Features
 
 *   **Native Shell Hooks:** Zero-latency `preexec` and `precmd` hooks for Bash, Zsh, and PowerShell. No noticeable delay in your daily workflow.
-*   **Daemon Architecture:** A background `smartd` service handles heavy database lifting, state synchronization, and background workers without blocking your terminal UI.
-*   **Ultra-Fast IPC:** Uses Unix Domain Sockets (Linux/macOS) and local TCP (Windows) for instantaneous communication between the shell CLI and the daemon.
-*   **SQLite Persistence:** WAL-mode SQLite database (`~/.smart_term_v2.sqlite`) for robust, lock-free command history and state storage.
-*   **Dynamic Context Management:** Isolate your workflow with hierarchical Namespaces, Users, and Projects.
-*   **Auto-Bindings:** Automatically switch contexts (e.g., active user or project) based on your current working directory.
+*   **Daemon Architecture:** A background `smartd` service handles heavy database lifting and state synchronization without blocking your terminal UI.
+*   **Ultra-Fast IPC:** Uses Unix Domain Sockets (Linux/macOS) and Named Pipes (Windows) for instantaneous communication.
+*   **Hierarchical Auto-Context (Bindings):** Automatically switch your active Namespace, Project, or User just by `cd`-ing into a directory. SmartTerm scans directory ancestors, so you stay in context even deep inside subdirectories!
+*   **Context Isolation:** Strictly separate your command history based on your current Namespace, Project, or User.
+*   **Smart History Management:** Clean up your tracks surgically with context-aware history resets.
 
 ---
 
@@ -22,7 +22,7 @@ curl -sSL https://raw.githubusercontent.com/bbhcoder/smart_term2/main/install.sh
 ```
 
 ### Windows (PowerShell)
-Install the binaries and add the key-handlers to your PowerShell profile:
+Install the binaries and add the key-handlers to your PowerShell profile (Automatically configures Windows Defender exclusions):
 ```powershell
 irm https://raw.githubusercontent.com/bbhcoder/smart_term2/main/install.ps1 | iex
 ```
@@ -32,70 +32,63 @@ irm https://raw.githubusercontent.com/bbhcoder/smart_term2/main/install.ps1 | ie
 ## 🚀 Getting Started
 
 1.  **Start the Daemon:** 
-    The daemon must be running in the background to process hooks and manage the database.
+    The daemon must be running in the background to process hooks and manage the SQLite database.
     ```bash
     smartd &
     ```
 2.  **Restart your Terminal:** 
-    Open a new terminal window to ensure the shell hooks (added during installation via `smart init`) are loaded.
+    Open a new terminal window to ensure the shell hooks are loaded.
 3.  **Start Typing!**
-    Every command you execute is now securely synced to your local SQLite database with its associated context.
+    Every command you execute is now securely synced to your local SQLite database with its associated context. Use the **Up Arrow** to navigate your completely isolated history.
 
 ---
 
 ## 🛠️ Command Reference
 
-The `smart` CLI provides interactive commands to manage your current terminal context.
-
-### 🏢 Namespace Management
-Namespaces act as the highest level of isolation (e.g., separating `Personal` from `Work`).
-*   `smart namespace use <name>` - Set the active namespace.
-*   `smart namespace exit` - Clear the active namespace.
-*   `smart namespace list` - View all previously used namespaces.
-
-### 👤 User Management
-Track commands executed under different logical roles or user profiles.
-*   `smart user login <username>` - Set the active user.
-*   `smart user logout` - Clear the active user.
-*   `smart user list` - List available users in the system.
-
-### 📁 Project Management
-Isolate history and state for specific codebases or projects.
-*   `smart project set <project_name>` - Set the active project.
-*   `smart project clear` - Clear the active project.
+SmartTerm provides an intuitive CLI to manage your current terminal context.
 
 ### 🔗 Directory Bindings (Auto-Context)
-SmartTerm can automatically switch your active user or project when you `cd` into specific directories (Prefetching).
-*   `smart bind user <username> <path>` - Automatically switch to `<username>` when entering `<path>`.
-*   `smart bind project <project_name> <path>` - Auto-activate project context in `<path>`.
+Lock a specific directory (and all its subdirectories) to a project or user.
+*   `smart bind project <name>` - Bind current directory to a project.
+*   `smart bind user <username>` - Bind current directory to a user.
+*   `smart unbind` - Remove the binding from the current directory.
 
-*Note: Bindings are evaluated asynchronously in the `precmd` hook after every prompt render.*
+### 🏢 Context Management
+Manually set or clear your active session state.
+*   **Namespaces:**
+    *   `smart namespace use <name>` - Switch to a namespace (prompts for project).
+    *   `smart namespace list` - View available namespaces.
+*   **Projects:**
+    *   `smart project set <name>` - Change the active project.
+    *   `smart project clear` - Clear the active project.
+*   **Users:**
+    *   `smart user login <username>` - Switch the active user.
+    *   `smart user list` - View available users.
+*   **Quick Clear:**
+    *   `smart unset [all|project|namespace|user]` - Quickly clear specific states from your prompt.
+
+### 📜 History & Data Management
+*   `smart reset` - Delete all command history for your *current isolated context and path*.
+*   `smart reset-all` - Permanently wipe the entire history database.
+*   `smart history` - View the history of the current context.
+
+### 🔄 Updates
+*   `smart --update` (or `-up`) - Check for updates and automatically recompile/download the latest version.
 
 ---
 
 ## 🏗️ Workspace Architecture
 
-SmartTerm v2 is designed as a modular Rust workspace:
+SmartTerm is designed as a modular Rust workspace for maximum maintainability:
 
-*   **`cli` (smart):** The frontend command-line interface. It parses interactive commands and routes invisible shell hooks to the daemon via IPC.
-*   **`smartd`:** The background async daemon powered by Tokio. It hosts the IPC server, manages the shared state cache, and runs periodic database sync workers.
-*   **`smartcore`:** The brain of the operation. Contains the ABI protocol definitions (serialization/deserialization), the `preexec`/`precmd` execution engine, and the in-memory state cache.
-*   **`db`:** Handles all SQLite interactions, schema migrations (WAL-mode initialization), and provides query abstractions for history and bindings.
-*   **`shell`:** Generates native, non-intrusive shell scripts for Bash, Zsh, and PowerShell to safely hook into the terminal lifecycle without breaking existing configs.
+*   **`cli` (smart):** The frontend command-line interface. Routes interactive commands and invisible shell hooks to the daemon.
+*   **`smartd`:** The background Tokio async daemon. Hosts the IPC server and manages the shared in-memory state cache.
+*   **`smartcore`:** The brain. Contains ABI protocol definitions (serde), the `preexec`/`precmd` execution engine, and the hierarchical path scanning logic.
+*   **`db`:** Handles all SQLite interactions (WAL-mode), schema migrations, and queries for history, bindings, and states.
+*   **`shell`:** Generates native, non-intrusive shell scripts for Bash, Zsh, and PowerShell to safely hook into the terminal lifecycle.
 
----
-
-## 🗄️ Database Schema
-
-All data is stored locally in `~/.smart_term_v2.sqlite`. You can query it directly using `sqlite3`:
-
-```bash
-# View your command history
-sqlite3 ~/.smart_term_v2.sqlite "SELECT command, cwd, timestamp FROM history ORDER BY timestamp DESC LIMIT 10;"
-
-# View current session state
-sqlite3 ~/.smart_term_v2.sqlite "SELECT * FROM session_state;"
-```
+## 🗄️ Database
+All data is stored locally in `~/.smart_dev/smart_term.db`. You can query it directly using `sqlite3`.
 
 ## 📄 License
 MIT License

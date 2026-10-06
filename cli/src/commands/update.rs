@@ -1,85 +1,50 @@
-use reqwest::blocking::Client;
-use serde::Deserialize;
-use std::process::Command;
 use std::env;
-
-#[derive(Deserialize)]
-struct GithubRelease {
-    tag_name: String,
-}
+use std::fs;
+use std::path::Path;
+use std::io::{self, Write};
+use crate::deploy;
 
 pub fn execute() {
+    let home = env::var("HOME").unwrap_or_default();
+    let dev_path_file = format!("{}/.smart_dev/source_path", home);
     let current_version = env!("CARGO_PKG_VERSION");
-    println!("Current SmartTerm Version: v{}", current_version);
-    println!("Checking for latest updates from GitHub...");
-
-    let client = Client::builder()
-        .user_agent("smart-term-cli")
-        .build();
-
-    let client = match client {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("Failed to create HTTP client: {}", e);
-            return;
-        }
-    };
-
-    let url = "https://api.github.com/repos/bbhcoder/smart_term2/releases/latest";
-    let res = client.get(url).send();
-
-    let release: GithubRelease = match res {
-        Ok(r) => match r.json() {
-            Ok(rel) => rel,
-            Err(e) => {
-                eprintln!("Failed to parse release information: {}", e);
-                return;
+    let mut target_version = String::new();
+    let mut is_dev = false;
+    let mut source_dir = String::new();
+    
+    if Path::new(&dev_path_file).exists() {
+        if let Ok(sd) = fs::read_to_string(&dev_path_file) {
+            source_dir = sd.trim().to_string();
+            let cargo_toml_path = format!("{}/Cargo.toml", source_dir);
+            if let Ok(content) = fs::read_to_string(&cargo_toml_path) {
+                for line in content.lines() {
+                    if line.trim().starts_with("version") && line.contains('=') {
+                        let parts: Vec<&str> = line.split('=').collect();
+                        if parts.len() == 2 { target_version = parts[1].trim().trim_matches(|c| c == '"' || c == ' ').to_string(); is_dev = true; break; }
+                    }
+                }
             }
-        },
-        Err(e) => {
-            eprintln!("Failed to connect to GitHub API: {}", e);
-            return;
         }
-    };
-
-    let latest_version = release.tag_name.trim_start_matches('v');
-    println!("Latest Release on GitHub: v{}", latest_version);
-
-    if current_version == latest_version {
-        println!("You are already using the latest version of SmartTerm! No update needed.");
+    }
+    
+    if !is_dev { target_version = "X.X.X".to_string(); }
+    if current_version == target_version {
+        println!("\x1b[32m[System] You are up to date! (v{})\x1b[0m", current_version);
         return;
     }
-
-    println!("A new version (v{}) is available! Starting upgrade process...", latest_version);
-
-    #[cfg(unix)]
-    {
-        let status = Command::new("sh")
-            .arg("-c")
-            .arg("curl -sSL https://raw.githubusercontent.com/bbhcoder/smart_term2/main/install.sh | bash")
-            .status();
-
-        match status {
-            Ok(s) if s.success() => println!("Update completed successfully! Please restart your terminal."),
-            _ => eprintln!("Failed to run the update script."),
+    
+    if is_dev { print!("\x1b[33m[System] The latest dev build version is {}. Update? [y/N]: \x1b[0m", target_version); } 
+    else { print!("\x1b[33m[System] The latest GitHub version is {}. Update? [y/N]: \x1b[0m", target_version); }
+    
+    let _ = io::stdout().flush();
+    let mut input = String::new();
+    if io::stdin().read_line(&mut input).is_ok() && input.trim().to_lowercase() == "y" {
+        if is_dev {
+            println!("\x1b[36m[System] Starting Local Compilation Update...\x1b[0m");
+            deploy::deploy(&source_dir);
+        } else {
+            println!("\x1b[36m[System] Starting OTA Update from GitHub...\x1b[0m");
+            println!("\x1b[33m[Warning] GitHub Repository URL is not configured yet. OTA update bypassed.\x1b[0m");
         }
-    }
-
-    #[cfg(windows)]
-    {
-        let status = Command::new("powershell")
-            .args(&[
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-                "Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command \"irm https://raw.githubusercontent.com/bbhcoder/smart_term2/main/install.ps1 | iex\"'"
-            ])
-            .status();
-
-        match status {
-            Ok(_) => println!("Update triggered in the background! Please restart your terminal shortly."),
-            Err(e) => eprintln!("Failed to trigger the update script: {}", e),
-        }
-    }
+    } else { println!("\x1b[31m[System] Update cancelled.\x1b[0m"); }
 }

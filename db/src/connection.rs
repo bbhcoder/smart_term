@@ -1,21 +1,16 @@
 use rusqlite::{Connection, Result};
-use std::path::PathBuf;
-
-pub fn get_db_path() -> PathBuf {
-    let mut path = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    if std::env::var("CARGO_MANIFEST_DIR").is_ok() {
-        path.push(".smart_term_v2_dev.sqlite");
-    } else {
-        path.push(".smart_term_v2.sqlite");
-    }
-    path
-}
+use std::env;
+use std::fs;
+use crate::queries::schema;
 
 pub fn get_connection() -> Result<Connection> {
-    let conn = Connection::open(get_db_path())?;
-    conn.pragma_update(None, "journal_mode", "WAL")?;
-    conn.pragma_update(None, "synchronous", "NORMAL")?;
-    conn.pragma_update(None, "foreign_keys", "ON")?;
-    conn.pragma_update(None, "busy_timeout", "5000")?;
+    let base_dir = env::var("SMART_BASE_DIR").unwrap_or_else(|_| {
+        let home = env::var("HOME").unwrap_or_else(|_| String::from("/tmp"));
+        format!("{}/.smart_dev", home)
+    });
+    let _ = fs::create_dir_all(&base_dir);
+    let db_path = format!("{}/smart_term.db", base_dir);
+    let conn = Connection::open(db_path)?;
+    schema::init_tables(&conn)?;
     Ok(conn)
 }
